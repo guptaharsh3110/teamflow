@@ -1,1 +1,1 @@
-{"build": {"builder": "NIXPACKS"}, "deploy": {"startCommand": "node src/index.js"}} 
+{ "build": { "builder": "RAILPACK" }, "deploy": { "startCommand": "node src/index.js" } } 

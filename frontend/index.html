@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TeamFlow - Task Manager</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --dark: #1a1a2e; --accent: #4f46e5; --bg: #f8fafc;
+      --card: #fff; --border: #e2e8f0; --text: #1e293b;
+      --muted: #64748b; --danger: #ef4444; --success: #22c55e;
+      --warn: #f59e0b; --radius: 10px;
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    /* ── AUTH ── */
+    #auth-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 1rem; }
+    .auth-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 2rem; width: 100%; max-width: 400px; box-shadow: 0 4px 24px rgba(0,0,0,0.07); }
+    .auth-logo { text-align: center; margin-bottom: 1.75rem; }
+    .auth-logo .icon { width: 52px; height: 52px; background: var(--dark); border-radius: 12px; display: flex; align-items: center; justify-content: center; margin: 0 auto 0.75rem; }
+    .auth-logo .icon svg { width: 26px; height: 26px; stroke: #fff; fill: none; stroke-width: 2; }
+    .auth-logo h1 { font-size: 22px; font-weight: 600; }
+    .auth-logo p { color: var(--muted); font-size: 13px; margin-top: 3px; }
+    .tab-row { display: flex; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 1.5rem; }
+    .tab-btn { flex: 1; padding: 9px; font-size: 13px; font-weight: 500; background: transparent; border: none; cursor: pointer; color: var(--muted); transition: all .2s; }
+    .tab-btn.active { background: var(--dark); color: #fff; }
+    .form-group { margin-bottom: 1rem; }
+    .form-group label { display: block; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin-bottom: 5px; }
+    .form-group input, .form-group select { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 14px; background: var(--bg); color: var(--text); transition: border .15s; }
+    .form-group input:focus, .form-group select:focus { outline: none; border-color: var(--accent); }
+    .btn { padding: 10px 18px; border: none; border-radius: var(--radius); font-size: 14px; font-weight: 500; cursor: pointer; transition: opacity .2s; }
+    .btn-primary { background: var(--dark); color: #fff; width: 100%; padding: 12px; margin-top: 4px; }
+    .btn-primary:hover { opacity: .85; }
+    .btn-sm { padding: 6px 14px; font-size: 12px; }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+    .btn-outline:hover { background: var(--bg); }
+    .btn-danger { background: #fee2e2; color: #991b1b; }
+    .btn-success { background: #dcfce7; color: #166534; }
+    .hint { font-size: 12px; color: var(--muted); text-align: center; margin-top: 1rem; }
+
+    /* ── LAYOUT ── */
+    #app { display: none; min-height: 100vh; }
+    .topbar { position: sticky; top: 0; z-index: 50; background: var(--card); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 1.5rem; height: 56px; gap: 1rem; }
+    .topbar h2 { font-size: 16px; font-weight: 600; flex: 1; }
+    .user-chip { display: flex; align-items: center; gap: 8px; padding: 6px 12px; background: var(--bg); border-radius: 20px; cursor: pointer; font-size: 13px; border: 1px solid var(--border); }
+    .main-content { max-width: 900px; margin: 0 auto; padding: 1.5rem 1rem; }
+    .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--card); border-top: 1px solid var(--border); display: flex; z-index: 50; }
+    .bottom-nav button { flex: 1; padding: 10px 6px 8px; background: transparent; border: none; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 10px; color: var(--muted); transition: color .2s; }
+    .bottom-nav button.active { color: var(--dark); font-weight: 600; }
+    .bottom-nav button svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; }
+    .pb { padding-bottom: 72px; }
+
+    /* ── CARDS ── */
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; margin-bottom: .75rem; }
+    .card:hover { border-color: #c7d2fe; }
+    .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; margin-bottom: 1.25rem; }
+    .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; }
+    .stat-card.dark { background: var(--dark); color: #fff; border-color: var(--dark); }
+    .stat-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; opacity: .6; margin-bottom: 4px; }
+    .stat-num { font-size: 30px; font-weight: 600; }
+    .stat-sub { font-size: 11px; opacity: .5; margin-top: 2px; }
+
+    /* ── TASK CARD ── */
+    .task-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: .9rem; margin-bottom: .65rem; }
+    .task-top { display: flex; align-items: flex-start; gap: .6rem; }
+    .check-box { width: 20px; height: 20px; border: 2px solid var(--border); border-radius: 50%; flex-shrink: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; margin-top: 1px; transition: all .2s; }
+    .check-box.done { background: var(--dark); border-color: var(--dark); }
+    .check-box.done::after { content: ''; width: 9px; height: 5px; border-left: 2px solid #fff; border-bottom: 2px solid #fff; transform: rotate(-45deg) translateY(-1px); display: block; }
+    .task-title { font-size: 14px; font-weight: 500; flex: 1; line-height: 1.4; }
+    .task-title.striked { text-decoration: line-through; color: var(--muted); }
+    .task-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: .6rem; }
+    .pill { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+    .pill-todo { background: #f1f5f9; color: #475569; }
+    .pill-progress { background: #dbeafe; color: #1e40af; }
+    .pill-review { background: #fef3c7; color: #92400e; }
+    .pill-done { background: #dcfce7; color: #166534; }
+    .pill-overdue { background: #fee2e2; color: #991b1b; }
+    .avatar { width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; color: #fff; flex-shrink: 0; }
+    .section-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: .75rem; padding-top: .25rem; }
+    .section-hdr h3 { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+
+    /* ── PROJECT CARD ── */
+    .project-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; margin-bottom: .75rem; cursor: pointer; }
+    .project-card:hover { border-color: #c7d2fe; }
+    .project-card h4 { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+    .project-card p { font-size: 12px; color: var(--muted); margin-bottom: .75rem; }
+    .prog-bar { height: 5px; background: var(--bg); border-radius: 3px; overflow: hidden; }
+    .prog-fill { height: 100%; background: var(--dark); border-radius: 3px; transition: width .4s; }
+    .project-meta-row { display: flex; justify-content: space-between; margin-top: .6rem; font-size: 11px; color: var(--muted); }
+
+    /* ── MEMBER ROW ── */
+    .member-row { display: flex; align-items: center; gap: .75rem; padding: .75rem 0; border-bottom: 1px solid var(--border); }
+    .member-av { width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: #fff; flex-shrink: 0; }
+    .member-info { flex: 1; }
+    .member-info .mname { font-size: 14px; font-weight: 600; }
+    .member-info .memail { font-size: 12px; color: var(--muted); }
+    .role-badge { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+    .role-admin { background: #dbeafe; color: #1e40af; }
+    .role-member { background: #dcfce7; color: #166534; }
+
+    /* ── MODAL ── */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 200; display: flex; align-items: flex-end; justify-content: center; }
+    .modal-box { background: var(--card); border-radius: 16px 16px 0 0; width: 100%; max-width: 480px; padding: 1.5rem; max-height: 85vh; overflow-y: auto; }
+    .modal-box h3 { font-size: 17px; font-weight: 600; margin-bottom: 1.25rem; }
+    .modal-actions { display: flex; gap: .75rem; margin-top: 1.25rem; }
+    .modal-actions .btn { flex: 1; }
+
+    /* ── TOAST ── */
+    #toast { position: fixed; top: 1rem; right: 1rem; z-index: 999; background: var(--dark); color: #fff; padding: 10px 18px; border-radius: var(--radius); font-size: 13px; display: none; animation: fadeIn .2s; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+
+    /* ── SPINNER ── */
+    .spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid #ccc; border-top-color: var(--dark); border-radius: 50%; animation: spin .7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-center { display: flex; justify-content: center; padding: 2rem 0; }
+    .empty { text-align: center; padding: 2.5rem 1rem; color: var(--muted); font-size: 13px; }
+    .error-msg { background: #fee2e2; color: #991b1b; padding: 10px 14px; border-radius: var(--radius); font-size: 13px; margin-bottom: 1rem; display: none; }
+  </style>
+</head>
+<body>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- AUTH -->
+<div id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="icon">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      </div>
+      <h1>TeamFlow</h1>
+      <p>Project & Task Manager</p>
+    </div>
+
+    <div class="tab-row">
+      <button class="tab-btn active" id="tab-login" onclick="switchAuthTab('login')">Login</button>
+      <button class="tab-btn" id="tab-signup" onclick="switchAuthTab('signup')">Sign Up</button>
+    </div>
+
+    <div id="auth-error" class="error-msg"></div>
+
+    <!-- LOGIN FORM -->
+    <div id="login-form">
+      <div class="form-group"><label>Email</label><input type="email" id="l-email" placeholder="aap@example.com" /></div>
+      <div class="form-group"><label>Password</label><input type="password" id="l-pass" placeholder="••••••••" /></div>
+      <button class="btn btn-primary" onclick="doLogin()">Login</button>
+      <p class="hint">Demo: admin@teamflow.com / admin123</p>
+    </div>
+
+    <!-- SIGNUP FORM -->
+    <div id="signup-form" style="display:none">
+      <div class="form-group"><label>Full Name</label><input type="text" id="s-name" placeholder="Aapka naam" /></div>
+      <div class="form-group"><label>Email</label><input type="email" id="s-email" placeholder="aap@example.com" /></div>
+      <div class="form-group"><label>Password</label><input type="password" id="s-pass" placeholder="Min 6 characters" /></div>
+      <div class="form-group"><label>Role</label>
+        <select id="s-role">
+          <option value="Member">Member</option>
+          <option value="Admin">Admin</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" onclick="doSignup()">Create Account</button>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+  <!-- Topbar -->
+  <div class="topbar">
+    <h2 id="page-title">Dashboard</h2>
+    <div class="user-chip" onclick="doLogout()">
+      <div class="avatar" id="nav-avatar" style="width:26px;height:26px;font-size:10px"></div>
+      <span id="nav-name"></span>
+      <span class="role-badge" id="nav-role"></span>
+    </div>
+  </div>
+
+  <!-- Page Content -->
+  <div class="main-content pb" id="page-content"></div>
+
+  <!-- Bottom Nav -->
+  <div class="bottom-nav">
+    <button id="nav-dashboard" class="active" onclick="goTo('dashboard')">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      Dashboard
+    </button>
+    <button id="nav-projects" onclick="goTo('projects')">
+      <svg viewBox="0 0 24 24"><path d="M2 7l10-4 10 4v10l-10 4L2 17V7z"/></svg>
+      Projects
+    </button>
+    <button id="nav-tasks" onclick="goTo('tasks')">
+      <svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z"/></svg>
+      Tasks
+    </button>
+    <button id="nav-team" onclick="goTo('team')">
+      <svg viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/><path d="M16 3a4 4 0 010 8M21 21v-2a4 4 0 00-3-3.87"/></svg>
+      Team
+    </button>
+  </div>
+</div>
+
+<!-- MODAL CONTAINER -->
+<div id="modal-container"></div>
+
+<script>
+// ═══════════════════════════════════════════════
+//  CONFIG
+// ═══════════════════════════════════════════════
+const API = '/api';  // same origin — backend serves frontend
+
+let currentUser = null;
+let currentPage = 'dashboard';
+
+// ═══════════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════════
+const COLORS = ['#3b82f6','#8b5cf6','#f59e0b','#10b981','#ef4444','#ec4899'];
+const initColor = name => COLORS[name.charCodeAt(0) % COLORS.length];
+const initials  = name => name.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2);
+
+function toast(msg, dur=2500) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.style.display = 'block';
+  setTimeout(() => el.style.display = 'none', dur);
+}
+
+function showError(id, msg) {
+  const el = document.getElementById(id);
+  if (el) { el.textContent = msg; el.style.display = 'block'; }
+}
+function hideError(id) {
+  const el = document.getElementById(id);
+  if (el) el.style.display = 'none';
+}
+
+async function apiFetch(path, opts = {}) {
+  const token = localStorage.getItem('tf_token');
+  const res = await fetch(API + path, {
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    ...opts,
+    body: opts.body ? JSON.stringify(opts.body) : undefined,
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Something went wrong');
+  return data;
+}
+
+function isOverdue(task) {
+  return !task.done && task.dueDate && new Date(task.dueDate) < new Date();
+}
+
+function statusPill(status) {
+  const map = { todo:'pill-todo To Do', progress:'pill-progress In Progress', review:'pill-review In Review', done:'pill-done Done' };
+  const [cls, label] = (map[status] || 'pill-todo To Do').split(' ').reduce((a, v, i) => { if(i===0) a[0]=v; else a[1] = (a[1]||'') + (i>1?' ':'')+v; return a; }, []);
+  return `<span class="pill ${cls}">${label}</span>`;
+}
+
+function fmtDate(d) { return d ? new Date(d).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' }) : ''; }
+
+// ═══════════════════════════════════════════════
+//  AUTH
+// ═══════════════════════════════════════════════
+function switchAuthTab(tab) {
+  document.getElementById('login-form').style.display  = tab==='login'  ? '' : 'none';
+  document.getElementById('signup-form').style.display = tab==='signup' ? '' : 'none';
+  document.getElementById('tab-login').classList.toggle('active', tab==='login');
+  document.getElementById('tab-signup').classList.toggle('active', tab==='signup');
+  hideError('auth-error');
+}
+
+async function doLogin() {
+  hideError('auth-error');
+  try {
+    const email = document.getElementById('l-email').value.trim();
+    const password = document.getElementById('l-pass').value;
+    const { token, user } = await apiFetch('/auth/login', { method:'POST', body:{ email, password } });
+    localStorage.setItem('tf_token', token);
+    currentUser = user;
+    enterApp();
+  } catch(e) { showError('auth-error', e.message); }
+}
+
+async function doSignup() {
+  hideError('auth-error');
+  try {
+    const name     = document.getElementById('s-name').value.trim();
+    const email    = document.getElementById('s-email').value.trim();
+    const password = document.getElementById('s-pass').value;
+    const role     = document.getElementById('s-role').value;
+    const { token, user } = await apiFetch('/auth/signup', { method:'POST', body:{ name, email, password, role } });
+    localStorage.setItem('tf_token', token);
+    currentUser = user;
+    enterApp();
+  } catch(e) { showError('auth-error', e.message); }
+}
+
+function doLogout() {
+  localStorage.removeItem('tf_token');
+  currentUser = null;
+  document.getElementById('auth-screen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+  toast('Logout ho gaya!');
+}
+
+function enterApp() {
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  const av = document.getElementById('nav-avatar');
+  av.textContent = initials(currentUser.name);
+  av.style.background = initColor(currentUser.name);
+  document.getElementById('nav-name').textContent = currentUser.name.split(' ')[0];
+  const rb = document.getElementById('nav-role');
+  rb.textContent = currentUser.role;
+  rb.className = `role-badge ${currentUser.role==='Admin' ? 'role-admin' : 'role-member'}`;
+  goTo('dashboard');
+}
+
+// ═══════════════════════════════════════════════
+//  NAVIGATION
+// ═══════════════════════════════════════════════
+function goTo(page) {
+  currentPage = page;
+  ['dashboard','projects','tasks','team'].forEach(p => {
+    document.getElementById('nav-'+p).classList.toggle('active', p===page);
+  });
+  const titles = { dashboard:'Dashboard', projects:'Projects', tasks:'My Tasks', team:'Team' };
+  document.getElementById('page-title').textContent = titles[page];
+  const pc = document.getElementById('page-content');
+  pc.innerHTML = '<div class="loading-center"><div class="spinner"></div></div>';
+  if(page==='dashboard') renderDashboard();
+  else if(page==='projects') renderProjects();
+  else if(page==='tasks') renderTasks();
+  else if(page==='team') renderTeam();
+}
+
+// ═══════════════════════════════════════════════
+//  DASHBOARD
+// ═══════════════════════════════════════════════
+async function renderDashboard() {
+  try {
+    const [stats, tasks] = await Promise.all([
+      apiFetch('/tasks/dashboard'),
+      apiFetch('/tasks'),
+    ]);
+    const pc = document.getElementById('page-content');
+    pc.innerHTML = `
+      <div class="stats-grid">
+        <div class="stat-card dark">
+          <div class="stat-label">My Tasks</div>
+          <div class="stat-num">${stats.total}</div>
+          <div class="stat-sub">${stats.done} completed</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">In Progress</div>
+          <div class="stat-num">${stats.inProgress}</div>
+          <div class="stat-sub">active tasks</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Overdue</div>
+          <div class="stat-num" style="color:var(--danger)">${stats.overdue}</div>
+          <div class="stat-sub">need attention</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Done</div>
+          <div class="stat-num" style="color:var(--success)">${stats.done}</div>
+          <div class="stat-sub">completed</div>
+        </div>
+      </div>
+
+      <div class="section-hdr">
+        <h3>Recent Tasks</h3>
+        <button class="btn btn-sm btn-outline" onclick="goTo('tasks')">View All</button>
+      </div>
+      ${tasks.slice(0,4).map(taskCardHTML).join('') || '<div class="empty">Koi task nahi hai</div>'}
+    `;
+    attachTaskCheckEvents();
+  } catch(e) { toast('Dashboard load nahi hua: ' + e.message); }
+}
+
+// ═══════════════════════════════════════════════
+//  PROJECTS
+// ═══════════════════════════════════════════════
+async function renderProjects() {
+  try {
+    const projects = await apiFetch('/projects');
+    const isAdmin = currentUser.role === 'Admin';
+    const pc = document.getElementById('page-content');
+    pc.innerHTML = `
+      <div class="section-hdr">
+        <h3>All Projects</h3>
+        ${isAdmin ? `<button class="btn btn-sm btn-outline" onclick="openNewProjectModal()">+ New Project</button>` : ''}
+      </div>
+      ${projects.length ? projects.map(p => {
+        const total = p.tasks?.length || 0;
+        return `
+        <div class="project-card">
+          <h4>${p.name}</h4>
+          <p>${p.description || 'No description'}</p>
+          <div class="prog-bar"><div class="prog-fill" style="width:0%"></div></div>
+          <div class="project-meta-row">
+            <span>${p.members.length} members</span>
+            <span>${fmtDate(p.createdAt)}</span>
+          </div>
+        </div>`;
+      }).join('') : '<div class="empty">Koi project nahi hai abhi</div>'}
+    `;
+  } catch(e) { toast('Projects load nahi hue: ' + e.message); }
+}
+
+function openNewProjectModal() {
+  document.getElementById('modal-container').innerHTML = `
+    <div class="modal-overlay" onclick="closeModal(event)">
+      <div class="modal-box" onclick="event.stopPropagation()">
+        <h3>New Project</h3>
+        <div id="proj-error" class="error-msg"></div>
+        <div class="form-group"><label>Project Name</label><input type="text" id="np-name" placeholder="Project ka naam" /></div>
+        <div class="form-group"><label>Description</label><input type="text" id="np-desc" placeholder="Short description (optional)" /></div>
+        <div class="modal-actions">
+          <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+          <button class="btn btn-primary" style="background:var(--dark)" onclick="submitNewProject()">Create</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+async function submitNewProject() {
+  hideError('proj-error');
+  try {
+    const name = document.getElementById('np-name').value.trim();
+    const description = document.getElementById('np-desc').value.trim();
+    if(!name) return showError('proj-error', 'Project ka naam zaroori hai!');
+    await apiFetch('/projects', { method:'POST', body:{ name, description } });
+    closeModal(); toast('Project ban gaya! 🎉'); renderProjects();
+  } catch(e) { showError('proj-error', e.message); }
+}
+
+// ═══════════════════════════════════════════════
+//  TASKS
+// ═══════════════════════════════════════════════
+async function renderTasks() {
+  try {
+    const tasks = await apiFetch('/tasks');
+    const isAdmin = currentUser.role === 'Admin';
+    const overdue = tasks.filter(t => isOverdue(t));
+    const active  = tasks.filter(t => !t.done && !isOverdue(t));
+    const done    = tasks.filter(t => t.done);
+
+    const pc = document.getElementById('page-content');
+    pc.innerHTML = `
+      <div class="section-hdr">
+        <h3>${isAdmin ? 'All Tasks' : 'My Tasks'}</h3>
+        ${isAdmin ? `<button class="btn btn-sm btn-outline" onclick="openNewTaskModal()">+ Add Task</button>` : ''}
+      </div>
+
+      ${overdue.length ? `
+        <p style="font-size:12px;color:var(--danger);font-weight:700;margin-bottom:.5rem">⚠️ Overdue (${overdue.length})</p>
+        ${overdue.map(taskCardHTML).join('')}
+      ` : ''}
+
+      ${active.map(taskCardHTML).join('')}
+
+      ${done.length ? `
+        <p style="font-size:12px;color:var(--muted);font-weight:700;margin:.75rem 0 .5rem">✅ Completed</p>
+        ${done.map(taskCardHTML).join('')}
+      ` : ''}
+
+      ${tasks.length === 0 ? '<div class="empty">Koi task nahi hai</div>' : ''}
+    `;
+    attachTaskCheckEvents();
+  } catch(e) { toast('Tasks load nahi hue: ' + e.message); }
+}
+
+function taskCardHTML(t) {
+  const assignee = t.assignee;
+  const over = isOverdue(t);
+  return `
+    <div class="task-card">
+      <div class="task-top">
+        <div class="check-box ${t.done?'done':''}" data-id="${t._id}" data-done="${t.done}"></div>
+        <span class="task-title ${t.done?'striked':''}">${t.title}</span>
+      </div>
+      <div class="task-meta">
+        ${statusPill(t.status)}
+        ${over ? '<span class="pill pill-overdue">Overdue</span>' : ''}
+        ${assignee ? `<span style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted)">
+          <div class="avatar" style="background:${initColor(assignee.name)}">${initials(assignee.name)}</div>
+          ${assignee.name.split(' ')[0]}
+        </span>` : ''}
+        ${t.dueDate ? `<span style="font-size:11px;color:var(--muted)">${fmtDate(t.dueDate)}</span>` : ''}
+        ${t.project ? `<span style="font-size:11px;color:var(--muted)">📁 ${t.project.name}</span>` : ''}
+      </div>
+    </div>`;
+}
+
+function attachTaskCheckEvents() {
+  document.querySelectorAll('.check-box').forEach(el => {
+    el.addEventListener('click', async () => {
+      const id   = el.dataset.id;
+      const done = el.dataset.done === 'true';
+      try {
+        await apiFetch(`/tasks/${id}`, { method:'PUT', body:{ done: !done } });
+        toast(done ? 'Task incomplete kiya' : 'Task complete! ✅');
+        if(currentPage==='dashboard') renderDashboard();
+        else renderTasks();
+      } catch(e) { toast('Update nahi hua: ' + e.message); }
+    });
+  });
+}
+
+async function openNewTaskModal() {
+  let projects = [], users = [];
+  try {
+    [projects, users] = await Promise.all([apiFetch('/projects'), apiFetch('/team')]);
+  } catch(e) {}
+
+  document.getElementById('modal-container').innerHTML = `
+    <div class="modal-overlay" onclick="closeModal(event)">
+      <div class="modal-box" onclick="event.stopPropagation()">
+        <h3>New Task</h3>
+        <div id="task-error" class="error-msg"></div>
+        <div class="form-group"><label>Title</label><input type="text" id="nt-title" placeholder="Task ka naam" /></div>
+        <div class="form-group"><label>Project</label>
+          <select id="nt-proj">
+            <option value="">Select project</option>
+            ${projects.map(p=>`<option value="${p._id}">${p.name}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group"><label>Assign To</label>
+          <select id="nt-assignee">
+            <option value="">Unassigned</option>
+            ${users.map(u=>`<option value="${u._id}">${u.name}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group"><label>Status</label>
+          <select id="nt-status">
+            <option value="todo">To Do</option>
+            <option value="progress">In Progress</option>
+            <option value="review">In Review</option>
+            <option value="done">Done</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Due Date</label><input type="date" id="nt-due" /></div>
+        <div class="modal-actions">
+          <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+          <button class="btn btn-primary" style="background:var(--dark)" onclick="submitNewTask()">Add Task</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+async function submitNewTask() {
+  hideError('task-error');
+  try {
+    const title      = document.getElementById('nt-title').value.trim();
+    const projectId  = document.getElementById('nt-proj').value;
+    const assigneeId = document.getElementById('nt-assignee').value;
+    const status     = document.getElementById('nt-status').value;
+    const dueDate    = document.getElementById('nt-due').value;
+    if(!title)     return showError('task-error', 'Title zaroori hai!');
+    if(!projectId) return showError('task-error', 'Project select karo!');
+    await apiFetch('/tasks', { method:'POST', body:{ title, projectId, assigneeId: assigneeId||undefined, status, dueDate: dueDate||undefined } });
+    closeModal(); toast('Task add ho gaya! 🎉'); renderTasks();
+  } catch(e) { showError('task-error', e.message); }
+}
+
+// ═══════════════════════════════════════════════
+//  TEAM
+// ═══════════════════════════════════════════════
+async function renderTeam() {
+  try {
+    const users = await apiFetch('/team');
+    const isAdmin = currentUser.role === 'Admin';
+    const pc = document.getElementById('page-content');
+    pc.innerHTML = `
+      <div class="section-hdr">
+        <h3>Team Members (${users.length})</h3>
+      </div>
+      ${users.map(u => `
+        <div class="member-row">
+          <div class="member-av" style="background:${initColor(u.name)}">${initials(u.name)}</div>
+          <div class="member-info">
+            <div class="mname">${u.name} ${u._id===currentUser._id?'<span style="font-size:11px;color:var(--muted)">(You)</span>':''}</div>
+            <div class="memail">${u.email}</div>
+          </div>
+          <span class="role-badge ${u.role==='Admin'?'role-admin':'role-member'}">${u.role}</span>
+          ${isAdmin && u._id !== currentUser._id ? `
+            <button class="btn btn-sm btn-danger" onclick="removeUser('${u._id}', '${u.name}')">Remove</button>
+          ` : ''}
+        </div>
+      `).join('')}
+    `;
+  } catch(e) { toast('Team load nahi hui: ' + e.message); }
+}
+
+async function removeUser(id, name) {
+  if(!confirm(`Kya sach mein "${name}" ko remove karna chahte ho?`)) return;
+  try {
+    await apiFetch(`/team/${id}`, { method:'DELETE' });
+    toast(`${name} remove ho gaya`); renderTeam();
+  } catch(e) { toast('Remove nahi hua: ' + e.message); }
+}
+
+// ═══════════════════════════════════════════════
+//  MODAL HELPERS
+// ═══════════════════════════════════════════════
+function closeModal(event) {
+  if(event && event.target !== event.currentTarget) return;
+  document.getElementById('modal-container').innerHTML = '';
+}
+
+// ═══════════════════════════════════════════════
+//  AUTO-LOGIN (if token exists)
+// ═══════════════════════════════════════════════
+(async () => {
+  const token = localStorage.getItem('tf_token');
+  if(!token) return;
+  try {
+    const { user } = await apiFetch('/auth/me');
+    currentUser = user;
+    enterApp();
+  } catch { localStorage.removeItem('tf_token'); }
+})();
+</script>
+</body>
+</html>
